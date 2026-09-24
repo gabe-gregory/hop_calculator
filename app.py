@@ -7,7 +7,7 @@ import plotly.graph_objects as go
 class App:
     def __init__(self):
         st.set_page_config(page_title="HOP Calculator", layout="wide")
-        st.title("High order stark shift calculator")
+        st.title(r"$^40$Ca$^+$ D$_{5/2}# a.c. Stark shift calculator")
         
         with st.spinner("Initializing calculator..."):
             self.sim = self.initialize()
