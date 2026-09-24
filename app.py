@@ -55,7 +55,6 @@ class App:
         # σ+
         label, col1, col2 = st.sidebar.columns([1, 2, 2])
         label.write("σ+")
-        
         self.sim.r_sp = col1.number_input(
             "spr", value=0.0, min_value=0.0, max_value=1.0,
             step=0.1, format="%.1f", label_visibility="collapsed"
@@ -64,15 +63,18 @@ class App:
             "spb", value=0.3, min_value=0.0, max_value=1.0,
             step=0.1, format="%.1f", label_visibility="collapsed"
         )
-        # self.sim.r_sp = col1.number_input("spr", value=0.0, label_visibility="collapsed")
-        # self.sim.b_sp = col2.number_input("spb", value=1/3, label_visibility="collapsed")
 
         # π
         label, col1, col2 = st.sidebar.columns([1, 2, 2])
         label.write("π")
-        self.sim.r_pi = col1.number_input("pir", value=0.0, label_visibility="collapsed")
-        self.sim.b_pi = col2.number_input("pib", value=1/3, label_visibility="collapsed")
-
+        self.sim.r_pi = col1.number_input(
+            "pir", value=0.0, min_value=0.0, max_value=1.0,
+            step=0.1, format="%.1f", label_visibility="collapsed"
+        )
+        self.sim.b_pi = col2.number_input(
+            "pib", value=0.3, min_value=0.0, max_value=1.0,
+            step=0.1, format="%.1f", label_visibility="collapsed"
+        )
         # σ− (calculated)
         self.sim.r_sm = 1 - self.sim.r_sp - self.sim.r_pi
         self.sim.b_sm = 1 - self.sim.b_sp - self.sim.b_pi
