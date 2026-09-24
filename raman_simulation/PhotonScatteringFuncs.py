@@ -104,7 +104,8 @@ def construct_mat_dict_fine_structure(Ju,Jl,Lu,Ll,mu):
     #
     #mu = normalization value; output from mu() for chosen upper and lower states
     
-    from fineStructureMatrixElement import fineStructureMatrixElement
+    # from fineStructureMatrixElement import fineStructureMatrixElement
+    from .fineStructureMatrixElement import fineStructureMatrixElement
     
     mat_dict = {'{}/2->{}/2'.format(int(i),int(j)): fineStructureMatrixElement(Ll, Jl, i/2, Lu, Ju, j/2, 1/2)/mu\
            for i in [-2*Jl + 2*k for k in range(int(2*Jl+1))] for j in [-2*Ju + 2*k for k in range(int(2*Ju+1))] if abs(i/2 - j/2)<=1}
