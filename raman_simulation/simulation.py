@@ -1,12 +1,15 @@
 import numpy as np
 from qutip import *
-from PhotonScatteringFuncs import *
+# from PhotonScatteringFuncs import *
 from scipy.signal import find_peaks
 from tqdm.notebook import tqdm
 import sympy as sp
 from scipy.signal import find_peaks
-import useful_funcs
+# import useful_funcs
 import matplotlib.pyplot as plt
+
+from .PhotonScatteringFuncs import *
+from . import useful_funcs
 
 class sim:
     def __init__(self,
