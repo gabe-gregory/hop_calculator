@@ -5,7 +5,7 @@ from scipy.signal import find_peaks
 from tqdm.notebook import tqdm
 import sympy as sp
 from scipy.signal import find_peaks
-import useful_funcs
+# import useful_funcs
 import matplotlib.pyplot as plt
 
 from .PhotonScatteringFuncs import *
