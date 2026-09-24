@@ -7,6 +7,7 @@ import sympy as sp
 from scipy.signal import find_peaks
 # import useful_funcs
 import matplotlib.pyplot as plt
+from pathlib import Path
 
 from .PhotonScatteringFuncs import *
 # from . import useful_funcs
@@ -1896,8 +1897,12 @@ class sim:
             
         self.get_rabi_frequencies()   # need to save symbols as global variable first 
         
-        path_ls = "\\Users\\Gregory\\hop_calculator\\stark_shifts\\"   # path pointing to where higher order stark shift arrays are saved
-        path_rf = "\\Users\\Gregory\\hop_calculator\\rabi_frequencies\\"   # path pointing to higher order rabi frequencies
+        base_path = Path(__file__).resolve().parent.parent
+        path_ls = str(base_path / "stark_shifts") + "/"
+        path_rf = str(base_path / "rabi_frequencies") + "/"
+        
+        # path_ls = "\\Users\\Gregory\\hop_calculator\\stark_shifts\\"   # path pointing to where higher order stark shift arrays are saved
+        # path_rf = "\\Users\\Gregory\\hop_calculator\\rabi_frequencies\\"   # path pointing to higher order rabi frequencies
 
         # read in rabi frequencies:
         # fij_k() computes the kth order rabi frequencies between qudit states labelled ij
