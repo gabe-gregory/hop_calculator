@@ -1896,8 +1896,8 @@ class sim:
             
         self.get_rabi_frequencies()   # need to save symbols as global variable first 
         
-        path_ls = "\\Users\\Gregory\\Ca40_multi_photon\\stark_shifts\\"   # path pointing to where higher order stark shift arrays are saved
-        path_rf = "\\Users\\Gregory\\Ca40_multi_photon\\rabi_frequencies\\"   # path pointing to higher order rabi frequencies
+        path_ls = "\\Users\\Gregory\\hop_calculator\\stark_shifts\\"   # path pointing to where higher order stark shift arrays are saved
+        path_rf = "\\Users\\Gregory\\hop_calculator\\rabi_frequencies\\"   # path pointing to higher order rabi frequencies
 
         # read in rabi frequencies:
         # fij_k() computes the kth order rabi frequencies between qudit states labelled ij
