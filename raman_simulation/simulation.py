@@ -1864,10 +1864,14 @@ class sim:
             
             self.p32_bound = np.append(self.p32_bound, p32_bound)
             self.p12_bound = np.append(self.p12_bound, p12_bound)
-    
-    
-    
         return
+    
+    def full_analytics(self):
+        return
+        
+        
+        
+        
 
     # function that calculates shifts throughout D5/2 manifold up to 8th order in stark shift and optionally counter rotating terms and F state couplings
     def rsig_splittings(self, Pr_bank):
@@ -1907,9 +1911,20 @@ class sim:
         # read in rabi frequencies:
         # fij_k() computes the kth order rabi frequencies between qudit states labelled ij
         if not self.counter_rot and not self.F_states:
+            # two-photon transitions
+            
+            # four-photon transitions
             self.f03_4 = sp.lambdify(self.symbols,np.load(path_rf + "03_4.npy", allow_pickle=True).tolist(),modules='numpy')
-            self.f03_6 = sp.lambdify(self.symbols,np.load(path_rf + "03_6.npy", allow_pickle=True).tolist(),modules='numpy')
+            self.f14_4 = sp.lambdify(self.symbols,np.load(path_rf + "14_4.npy", allow_pickle=True).tolist(),modules='numpy')
+            self.f25_4 = sp.lambdify(self.symbols,np.load(path_rf + "25_4.npy", allow_pickle=True).tolist(),modules='numpy')
+            
+            # six-photon transitions
             self.f04_6 = sp.lambdify(self.symbols,np.load(path_rf + "04_6.npy", allow_pickle=True).tolist(),modules='numpy')
+            self.f15_6 = sp.lambdify(self.symbols,np.load(path_rf + "15_6.npy", allow_pickle=True).tolist(),modules='numpy')
+            self.f05_6 = sp.lambdify(self.symbols,np.load(path_rf + "05_6.npy", allow_pickle=True).tolist(),modules='numpy')
+            
+            self.f03_6 = sp.lambdify(self.symbols,np.load(path_rf + "03_6.npy", allow_pickle=True).tolist(),modules='numpy')
+            
         if self.counter_rot and not self.F_states:
             self.f03_4 = sp.lambdify(self.symbols,np.load(path_rf + "03_4_c.npy", allow_pickle=True).tolist(),modules='numpy')
             self.f03_6 = sp.lambdify(self.symbols,np.load(path_rf + "03_6_c.npy", allow_pickle=True).tolist(),modules='numpy')
