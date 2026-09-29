@@ -27,6 +27,9 @@ class App:
             self.plot_stark_shifts()
 
         with tab2:
+            if "rabi" not in st.session_state:
+                self.calculate_rabi()
+
             calculate, simulate = self.plot_rabi_frequencies()
 
             if calculate:
