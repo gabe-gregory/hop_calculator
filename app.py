@@ -67,8 +67,8 @@ class App:
                 dyn_bar.empty()
 
                 self.save_simulation()
-                st.session_state.beam_detuning = float(self.sim.ω_num/(2*np.pi*1e6))
-                self.sim.ω = self.sim.ω_num
+                st.session_state.next_beam_detuning = float(self.sim.w_num/(2*np.pi*1e6))
+                self.sim.ω = self.sim.w_num
                 st.rerun()
 
             if "simulation" in st.session_state:
@@ -131,12 +131,14 @@ class App:
 
         # Additional parameters
         st.sidebar.divider()
+        if "next_beam_detuning" in st.session_state:
+            st.session_state.beam_detuning = st.session_state.pop("next_beam_detuning")
+
         if "beam_detuning" not in st.session_state:
             st.session_state.beam_detuning = 5.0
         self.sim.ω = st.sidebar.slider("Beam detuning (MHz)", min_value=-20.0, max_value=20.0, step=0.1, key="beam_detuning")*2*np.pi*1e6        
         self.sim.Δ = st.sidebar.number_input("P state detuning (THz)", value=-44)*2*np.pi*1e12
         self.sim.ω0 = st.sidebar.number_input("Zeeman splitting (MHz)", value=2.63)*2*np.pi*1e6
-
         self.sim.get_rabi_frequencies()
 
     def calculate_rabi(self):
@@ -169,7 +171,7 @@ class App:
         def make_fig(values, title, color):
             fig = go.Figure()
             fig.add_bar(x=labels, y=values[::-1], marker_color=[state_colors[x] for x in labels], hovertemplate="%{y:.2f} kHz<extra></extra>")
-            fig.update_layout(xaxis_title="", yaxis_title="a.c. Stark shift (kHz)", title=dict(text=f"<b>{title}</b>", font=dict(color='black')), showlegend=False)
+            fig.update_layout(height=300, xaxis_title="", yaxis_title="a.c. Stark shift (kHz)", title=dict(text=f"<b>{title}</b>", font=dict(color='black')), showlegend=False)
             return fig
 
         # Plot 1
