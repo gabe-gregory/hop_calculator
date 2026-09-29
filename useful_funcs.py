@@ -2,9 +2,9 @@ from sys import path
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.optimize import curve_fit
-import oitg.fitting
-import oitg.errorbars
-import oitg.results as results
+# import oitg.fitting
+# import oitg.errorbars
+# import oitg.results as results
 import os.path
 from statsmodels.stats.proportion import proportion_confint
 from matplotlib.pyplot import figure
