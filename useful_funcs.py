@@ -6,11 +6,11 @@ from scipy.optimize import curve_fit
 # import oitg.errorbars
 # import oitg.results as results
 import os.path
-from statsmodels.stats.proportion import proportion_confint
+# from statsmodels.stats.proportion import proportion_confint
 from matplotlib.pyplot import figure
-import math
-from scipy.optimize import minimize
-from scipy.stats import binom
+# import math
+# from scipy.optimize import minimize
+# from scipy.stats import binom
 from qutip import *
 
 # reading in data
