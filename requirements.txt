@@ -2,6 +2,6 @@ numpy
 scipy
 sympy
 plotly
-qutip
+qutip==4.7.2
 tqdm
 matplotlib
