@@ -24,8 +24,8 @@ class App:
         tab1, tab2 = st.tabs(["Stark Shifts", "Rabi Frequencies"])
 
         with tab1:
+            self.plot_zeeman_levels()
             self.plot_stark_shifts()
-
         with tab2:
             if "rabi" not in st.session_state:
                 self.calculate_rabi()
@@ -67,6 +67,9 @@ class App:
                 dyn_bar.empty()
 
                 self.save_simulation()
+                st.session_state.beam_detuning = float(self.sim.ω_num/(2*np.pi*1e6))
+                self.sim.ω = self.sim.ω_num
+                st.rerun()
 
             if "simulation" in st.session_state:
                 self.plot_simulation()
@@ -128,7 +131,9 @@ class App:
 
         # Additional parameters
         st.sidebar.divider()
-        self.sim.ω = st.sidebar.slider("Beam detuning (MHz)", min_value=-20.0, max_value=20.0, value=5.0, step=0.1)*2*np.pi*1e6
+        if "beam_detuning" not in st.session_state:
+            st.session_state.beam_detuning = 5.0
+        self.sim.ω = st.sidebar.slider("Beam detuning (MHz)", min_value=-20.0, max_value=20.0, step=0.1, key="beam_detuning")*2*np.pi*1e6        
         self.sim.Δ = st.sidebar.number_input("P state detuning (THz)", value=-44)*2*np.pi*1e12
         self.sim.ω0 = st.sidebar.number_input("Zeeman splitting (MHz)", value=2.63)*2*np.pi*1e6
 
@@ -142,9 +147,11 @@ class App:
         }
 
     def plot_stark_shifts(self):
-        st.subheader("a.c. Stark shifts")
-        labels = ["+5/2", "+3/2", "+1/2", "-1/2", "-3/2", "-5/2"]
-
+        labels = ["-5/2", "-3/2", "-1/2", "+1/2", "+3/2", "+5/2"]
+        state_colors = {
+            "+5/2": "#636EFA", "+3/2": "#EF553B", "+1/2": "#00CC96",
+            "-1/2": "#AB63FA", "-3/2": "#FFA15A", "-5/2": "#19D3F3"
+        }
         colors = {
             2: "gray",
             4: "gray",
@@ -161,7 +168,7 @@ class App:
 
         def make_fig(values, title, color):
             fig = go.Figure()
-            fig.add_bar(x=labels, y=values, marker_color=color, hovertemplate="%{y:.2f} kHz<extra></extra>")
+            fig.add_bar(x=labels, y=values[::-1], marker_color=[state_colors[x] for x in labels], hovertemplate="%{y:.2f} kHz<extra></extra>")
             fig.update_layout(xaxis_title="", yaxis_title="a.c. Stark shift (kHz)", title=dict(text=f"<b>{title}</b>", font=dict(color='black')), showlegend=False)
             return fig
 
@@ -218,6 +225,73 @@ class App:
         with col2:
             st.plotly_chart(make_fig(values8, "8th order", colors[8]))
 
+    def plot_zeeman_levels(self):
+        m = np.array([-5/2, -3/2, -1/2, 1/2, 3/2, 5/2])
+        display_labels = ["⁻⁵⁄₂", "⁻³⁄₂", "⁻¹⁄₂", "⁺¹⁄₂", "⁺³⁄₂", "⁺⁵⁄₂"]
+        state_colors = ["#19D3F3", "#FFA15A", "#AB63FA", "#00CC96", "#EF553B", "#636EFA"]
+        δ0 = self.sim.δ02_bank[0] + self.sim.δ04_bank[0] + self.sim.δ06_bank[0] + self.sim.δ08_bank[0]
+        δ1 = self.sim.δ12_bank[0] + self.sim.δ14_bank[0] + self.sim.δ16_bank[0] + self.sim.δ18_bank[0]
+        δ2 = self.sim.δ22_bank[0] + self.sim.δ24_bank[0] + self.sim.δ26_bank[0] + self.sim.δ28_bank[0]
+        δ3 = self.sim.δ32_bank[0] + self.sim.δ34_bank[0] + self.sim.δ36_bank[0] + self.sim.δ38_bank[0]
+        δ4 = self.sim.δ42_bank[0] + self.sim.δ44_bank[0] + self.sim.δ46_bank[0] + self.sim.δ48_bank[0]
+        δ5 = self.sim.δ52_bank[0] + self.sim.δ54_bank[0] + self.sim.δ56_bank[0] + self.sim.δ58_bank[0]
+        
+        ω01 = (self.sim.ω0 + δ0 - δ1)/(2*np.pi*1e6)
+        ω12 = (self.sim.ω0 + δ1 - δ2)/(2*np.pi*1e6)
+        ω23 = (self.sim.ω0 + δ2 - δ3)/(2*np.pi*1e6)
+        ω34 = (self.sim.ω0 + δ3 - δ4)/(2*np.pi*1e6)
+        ω45 = (self.sim.ω0 + δ4 - δ5)/(2*np.pi*1e6)
+        
+        spacing = np.array([ω45, ω34, ω23, ω12, ω01])  # MHz, placeholders
+        y = np.r_[0, np.cumsum(spacing)]
+        y = (y-y.min())/(y.max()-y.min())  # rescales levels from 0 → 1
+
+        fig = go.Figure()
+
+        # Zeeman levels
+        for mi, yi, label, color in zip(m, y, display_labels, state_colors):
+            fig.add_shape(type="line", x0=mi-.35, x1=mi+.35, y0=yi, y1=yi,
+                          line=dict(color="black", width=3), layer="below")
+            fig.add_trace(go.Scatter(
+                x=[mi], y=[yi], mode="markers+text",
+                marker=dict(size=55, color=color, opacity=1, line=dict(color="black", width=2)),
+                text=[label], textposition="middle center",
+                textfont=dict(size=25, color="black"),
+                hoverinfo="skip", showlegend=False
+            ))
+
+        # Splitting arrows
+        for i in range(5):
+            xmid = (m[i] + m[i+1])/2
+            fig.add_annotation(
+                x=xmid, y=y[i+1],
+                ax=xmid, ay=(y[i]+y[i+1])/2,
+                xref="x", yref="y", axref="x", ayref="y",
+                showarrow=True, arrowhead=2, arrowwidth=1.5, arrowcolor="gray"
+            )
+            fig.add_annotation(
+                x=xmid, y=y[i],
+                ax=xmid, ay=(y[i]+y[i+1])/2,
+                xref="x", yref="y", axref="x", ayref="y",
+                showarrow=True, arrowhead=2, arrowwidth=1.5, arrowcolor="gray"
+            )
+            fig.add_annotation(
+                x=xmid, y=(y[i]+y[i+1])/2,
+                text=f"{spacing[i]:.2f} MHz",
+                showarrow=False, xshift=0
+            )
+
+        fig.update_layout(
+            height=500,
+            xaxis=dict(visible=False, range=[-3,3]),
+            yaxis=dict(visible=False, range=[-0.1, 1.1]),
+            showlegend=False,
+            plot_bgcolor="white",
+            margin=dict(l=20,r=20,t=20,b=20)
+        )
+
+        st.plotly_chart(fig, use_container_width=True)        
+            
     def plot_rabi_frequencies(self):
         labels = ["+5/2", "+3/2", "-1/2", "-5/2", "-3/2", "+1/2"]
         display_labels = ["⁺⁵⁄₂", "⁺³⁄₂", "⁻¹⁄₂", "⁻⁵⁄₂", "⁻³⁄₂", "⁺¹⁄₂"]
