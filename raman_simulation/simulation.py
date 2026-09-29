@@ -1,16 +1,34 @@
 import numpy as np
 from qutip import *
+from qutip.ui.progressbar import BaseProgressBar
 # from PhotonScatteringFuncs import *
 from scipy.signal import find_peaks
 from tqdm.notebook import tqdm
 import sympy as sp
 from scipy.signal import find_peaks
-# import useful_funcs
+import useful_funcs
 import matplotlib.pyplot as plt
 from pathlib import Path
 
+
 from .PhotonScatteringFuncs import *
 # from . import useful_funcs
+
+class StitchedProgressBar(BaseProgressBar):
+    def __init__(self, callback, solve_index=0, n_solves=1):
+        self.callback = callback
+        self.solve_index = solve_index
+        self.n_solves = n_solves
+
+    def start(self, iterations, **kwargs):
+        self.iterations = iterations
+
+    def update(self, n):
+        local = n / max(self.iterations - 1, 1)
+        self.callback((self.solve_index + local) / self.n_solves)
+
+    def finished(self):
+        self.callback((self.solve_index + 1) / self.n_solves)
 
 class sim:
     def __init__(self,
@@ -337,11 +355,11 @@ class sim:
                     self.Δ, self.Δc, self.ΔF, self.ω, self.ω0, self.ω01, self.ω12, self.ω23, self.ω34, self.ω45)          
         return
     
-    def simulate(self, t):
+    def simulate(self, t, s0, progress_bar=None):
         # simulation of 6 level system in D5/2
         # P states have been adiabatically eliminated, each coupling between D states is a two-photon coupling
         
-        self.ψ = basis(6,0)   # intialize state vector
+        self.ψ = basis(6,s0)   # intialize state vector
         
         self.get_rabi_frequencies()   # refresh values of single beam rabi frequencies, incase power has been updated
         
@@ -830,16 +848,16 @@ class sim:
         args = {'ω':self.ω, 'ω0':self.ω0}
                       
         # solve for bank of state vectors at each point specified in t, driven by the hamiltonian above
-        self.ψ = sesolve(self.H,self.ψ, t, args = args, options=Options(nsteps=1e9)).states
+        self.ψ = sesolve(self.H,self.ψ,t,args=args,options=Options(nsteps=1e9),progress_bar=progress_bar).states
 
         return    
     
-    def simulate_PS(self, tpi, f, ϵ):
+    def simulate_PS(self, tpi, f, ϵ, s0):
         # simulation of n-photon pi pulse, ramped by sin^2(x) or sin^4(x)
         # f: relative length of ramp relative to pulse time
         # ϵ: relative error in length of pi pulse time
         
-        self.ψ = basis(6,0)   # intialize state vector
+        self.ψ = basis(6,s0)   # intialize state vector
         self.get_rabi_frequencies()   # refresh values of single beam rabi frequencies, incase power has been updated
         
         # no pulse shaping (rectangular pulse)
@@ -1728,11 +1746,11 @@ class sim:
                 
                 # if numerical beam detuning not provided, assume resonance according to second order stark shifts
                 # if simulation has been carried out with fixed beam detuning prior, will use that number here instead
-                if sim_resonance is None:
-                    if self.transition == '+5/2<->-1/2':
-                        self.ω = (3*self.ω0 + δ0 - δ3)/2
-                    if self.transition == '+5/2<->-3/2':
-                        self.ω = (4*self.ω0 + δ0 - δ4)/3
+                # if sim_resonance is None:
+                #     if self.transition == '+5/2<->-1/2':
+                #         self.ω = (3*self.ω0 + δ0 - δ3)/2
+                #     if self.transition == '+5/2<->-3/2':
+                #         self.ω = (4*self.ω0 + δ0 - δ4)/3
 
                 if self.ls_order >= 4:  # add in fourth order stark shifts δi4 on state i
                     δ04 = np.sum(self.f04(*self.nums)) 
@@ -1848,9 +1866,6 @@ class sim:
                 self.Ω_pred = np.append(self.Ω_pred, np.abs(Ω04_6))
             if self.ls_854 != 0:
                 self.Ω_pred = np.append(self.Ω_pred, np.abs(Ω01_2))
-        
-            # calculate predicted resonance to guide simulation
-            self.ω_pred = np.append(self.ω_pred, wr)
             
             self.ω01_bank = np.append(self.ω01_bank, self.ω01)
             self.ω12_bank = np.append(self.ω12_bank, self.ω12)
@@ -1858,21 +1873,268 @@ class sim:
             self.ω34_bank = np.append(self.ω34_bank, self.ω34)
             self.ω45_bank = np.append(self.ω45_bank, self.ω45)
             
+            # calculate predicted resonance to guide simulation
+            self.ω_pred_full = {
+                '+5/2<->+3/2': self.ω01,
+                '+5/2<->+1/2': (self.ω01+self.ω12),
+                '+3/2<->+1/2': self.ω12,
+                '+3/2<->-1/2': (self.ω12+self.ω23),
+                '+1/2<->-1/2': self.ω23,
+                '+1/2<->-3/2': (self.ω23+self.ω34),
+                '-1/2<->-3/2': self.ω34,
+                '-1/2<->-5/2': (self.ω34+self.ω45),
+                '-3/2<->-5/2': self.ω45,
+                '+5/2<->-1/2': (self.ω01+self.ω12+self.ω23)/2,
+                '+3/2<->-3/2': (self.ω12+self.ω23+self.ω34)/2,
+                '+1/2<->-5/2': (self.ω23+self.ω34+self.ω45)/2,
+                '+5/2<->-3/2': (self.ω01+self.ω12+self.ω23+self.ω34)/3,
+                '+3/2<->-5/2': (self.ω12+self.ω23+self.ω34+self.ω45)/3,
+                '+5/2<->-5/2': (self.ω01+self.ω12+self.ω23+self.ω34+self.ω45)/3
+            }
+
+            wr = self.ω_pred_full[self.transition]
             # calculate bounds on maximum population in intermediate states (only works for four-photon transition)
             p32_bound = ((self.Ω06r*self.Ω16b/(2*self.Δ))**2)/(((self.Ω06r*self.Ω16b/(2*self.Δ))**2) + ((self.Ω17r*self.Ω37b/(2*self.Δ))**2) + (wr - w01)**2)
             p12_bound = ((self.Ω06r*self.Ω26b/(2*self.Δ))**2)/(((self.Ω06r*self.Ω26b/(2*self.Δ))**2) + ((self.Ω28r*self.Ω38b/(2*self.Δ))**2) + (w01 + w01 - wr)**2)
             
             self.p32_bound = np.append(self.p32_bound, p32_bound)
             self.p12_bound = np.append(self.p12_bound, p12_bound)
+            
+
+            
         return
     
-    def full_analytics(self):
+    # function that calculates rabi frequency and resonance of every transition that provides
+    # all-to-all connectivity
+    def full_analytics(self): 
+        transition = self.transition
+
+        self.transition = '+5/2<->-1/2'
+        self.ls_order = 2
+        self.analytics([self.Pb])
+        self.transition = transition
+        
+        self.ω_pred_full = {'+5/2<->+3/2':self.ω01,
+                           '+5/2<->+1/2':(self.ω01+self.ω12),
+                           '+3/2<->+1/2':self.ω12,
+                           '+3/2<->-1/2':(self.ω12+self.ω23),
+                           '+1/2<->-1/2':self.ω23,
+                           '+1/2<->-3/2':(self.ω23+self.ω34),
+                           '-1/2<->-3/2':self.ω34,
+                           '-1/2<->-5/2':(self.ω34+self.ω45),
+                           '-3/2<->-5/2':self.ω45,
+                           '+5/2<->-1/2':(self.ω01+self.ω12+self.ω23)/2,
+                           '+3/2<->-3/2':(self.ω12+self.ω23+self.ω34)/2,
+                           '+1/2<->-5/2':(self.ω23+self.ω34+self.ω45)/2,
+                           '+5/2<->-3/2':(self.ω01+self.ω12+self.ω23+self.ω34)/3,
+                           '+3/2<->-5/2':(self.ω12+self.ω23+self.ω34+self.ω45)/3,
+                           '+5/2<->-5/2':(self.ω01+self.ω12+self.ω23+self.ω34+self.ω45)/3}
+        
+        self.rabi_functions = {'+5/2<->+3/2':self.f01_2,
+                               '+5/2<->+1/2':self.f02_2,
+                               '+3/2<->+1/2':self.f12_2,
+                               '+3/2<->-1/2':self.f13_2,
+                               '+1/2<->-1/2':self.f23_2,
+                               '+1/2<->-3/2':self.f24_2,
+                               '-1/2<->-3/2':self.f34_2,
+                               '-1/2<->-5/2':self.f35_2,
+                               '-3/2<->-5/2':self.f45_2,
+                               '+5/2<->-1/2':self.f03_4,
+                               '+3/2<->-3/2':self.f14_4,
+                               '+1/2<->-5/2':self.f25_4,
+                               '+5/2<->-3/2':self.f04_6,
+                               '+3/2<->-5/2':self.f15_6,
+                               '+5/2<->-5/2':self.f05_6}
+        
+        self.rabi_freqs = {}
+        self.rabi_terms = {}
+        self.ls_order = 8
+
+        for key,value in self.ω_pred_full.items():
+            self.ω = value
+            # self.get_rabi_frequencies()
+            self.analytics([self.Pb])
+            Ω = abs(np.sum(self.rabi_functions[key](*self.nums)))
+            self.rabi_freqs[key] = Ω/(2*np.pi*1e3)
+            terms = self.rabi_functions[key](*self.nums)
+            self.rabi_terms[key] = np.array(terms)/(2*np.pi*1e3)
+            self.ω_temp = {'+5/2<->+3/2':self.ω01,
+                           '+5/2<->+1/2':(self.ω01+self.ω12),
+                           '+3/2<->+1/2':self.ω12,
+                           '+3/2<->-1/2':(self.ω12+self.ω23),
+                           '+1/2<->-1/2':self.ω23,
+                           '+1/2<->-3/2':(self.ω23+self.ω34),
+                           '-1/2<->-3/2':self.ω34,
+                           '-1/2<->-5/2':(self.ω34+self.ω45),
+                           '-3/2<->-5/2':self.ω45,
+                           '+5/2<->-1/2':(self.ω01+self.ω12+self.ω23)/2,
+                           '+3/2<->-3/2':(self.ω12+self.ω23+self.ω34)/2,
+                           '+1/2<->-5/2':(self.ω23+self.ω34+self.ω45)/2,
+                           '+5/2<->-3/2':(self.ω01+self.ω12+self.ω23+self.ω34)/3,
+                           '+3/2<->-5/2':(self.ω12+self.ω23+self.ω34+self.ω45)/3,
+                           '+5/2<->-5/2':(self.ω01+self.ω12+self.ω23+self.ω34+self.ω45)/3}
+            
+            self.ω_pred_full[key] = self.ω_temp[key]
+
         return
         
+    def full_simulate(self, spectroscopy_progress=None, dynamics_progress=None):
+        self.trans_states = {'+5/2<->+3/2':[0,1],
+                             '+5/2<->+1/2':[0,2],
+                             '+3/2<->+1/2':[1,2],
+                             '+3/2<->-1/2':[1,3],
+                             '+1/2<->-1/2':[2,3],
+                             '+1/2<->-3/2':[2,4],
+                             '-1/2<->-3/2':[3,4],
+                             '-1/2<->-5/2':[3,5],
+                             '-3/2<->-5/2':[4,5],
+                             '+5/2<->-1/2':[0,3],
+                             '+3/2<->-3/2':[1,4],
+                             '+1/2<->-5/2':[2,5],
+                             '+5/2<->-3/2':[0,4],
+                             '+3/2<->-5/2':[1,5],
+                             '+5/2<->-5/2':[0,5]}
         
+        s0 = self.trans_states[self.transition][0]
+        sf = self.trans_states[self.transition][1]
+        self.ω_pred = self.ω_pred_full[self.transition]
+        self.Ω_pred = self.rabi_freqs[self.transition]*2*np.pi*1e3
+        t_int = 0.8*np.pi/self.Ω_pred
+        t = np.linspace(0,t_int,100)
+        # do spectroscopy
+        rng = (2**5)*self.Ω_pred/4
+        self.ω_bank = np.linspace(self.ω_pred - rng, self.ω_pred + rng, 50)
+        self.p52_res = np.array(())
+        self.p32_res = np.array(())
+        self.p12_res = np.array(())
+        self.m12_res = np.array(())
+        self.m32_res = np.array(())
+        self.m52_res = np.array(())
         
+        for i in range(len(self.ω_bank)):
+            self.ω = self.ω_bank[i]
+            self.get_rabi_frequencies()
+            progress = StitchedProgressBar(spectroscopy_progress, i, len(self.ω_bank)) if spectroscopy_progress else None
+            self.simulate(t, s0, progress)
+            self.get_populations()
+            self.p52_res = np.append(self.p52_res, self.p52[-1])
+            self.p32_res = np.append(self.p32_res, self.p32[-1])
+            self.p12_res = np.append(self.p12_res, self.p12[-1])
+            self.m12_res = np.append(self.m12_res, self.m12[-1])
+            self.m32_res = np.append(self.m32_res, self.m32[-1])
+            self.m52_res = np.append(self.m52_res, self.m52[-1])
+            
+        state_dict = {0: self.p52_res, 1: self.p32_res, 2: self.p12_res, 3: self.m12_res, 4: self.m32_res, 5: self.m52_res}
+        arr_to_fit = state_dict[sf]
         
+        # fit sinc(w) to simulated spectroscopy data to find numerically simulated resonance
+        h = max(arr_to_fit)   # initial guess of height of sinc(w)
+        x0 = self.ω_bank[np.abs(arr_to_fit - h).argmin()] + 1e-6   # initial guess of resonance (offset from perfect to avoid errors), index of highest y
+        hlfm = np.abs(self.ω_bank[np.abs(arr_to_fit - h/2).argmin()] - x0)   # initial guess of half max of sinc(w)
+        w0 = 1.5/hlfm   # convert half max to parameter used in fit
+    
+        # initial parameters
+        p0 = [h,x0,w0]
+        self.p, self.fit_res, self.err = useful_funcs.fitSinc(self.ω_bank, arr_to_fit, p0)
+        self.w_num = self.p[1]
+        
+        # simulate rabi oscillations
+        self.ω = self.w_num
+        self.get_rabi_frequencies()
+        self.t = np.linspace(0,4*np.pi/self.Ω_pred,1000)
 
+        progress = StitchedProgressBar(dynamics_progress) if dynamics_progress else None
+        self.simulate(self.t, s0, progress)
+        self.get_populations()
+        
+        # initial parameters to fit rabi frequency
+        p0 = [(np.abs(np.pi/self.Ω_pred)), 0,1]
+        bnds = [(10e-9,-.1,.6),(100000e-6,.1,1)]
+
+        flop_dict = {0: self.p52, 1: self.p32, 2: self.p12, 3: self.m12, 4: self.m32, 5: self.m52}
+        arr_to_fit = flop_dict[sf]
+        
+        self.p,self.fit,self.error = useful_funcs.fitSinFull(self.t,arr_to_fit,p0,bnds)
+        
+        self.analytics([self.Pb]) 
+        
+        self.second_order_shift = {
+            '+5/2<->+3/2': self.δ02_bank[0] - self.δ12_bank[0],
+            '+5/2<->+1/2': self.δ02_bank[0] - self.δ22_bank[0],
+            '+3/2<->+1/2': self.δ12_bank[0] - self.δ22_bank[0],
+            '+3/2<->-1/2': self.δ12_bank[0] - self.δ32_bank[0],
+            '+1/2<->-1/2': self.δ22_bank[0] - self.δ32_bank[0],
+            '+1/2<->-3/2': self.δ22_bank[0] - self.δ42_bank[0],
+            '-1/2<->-3/2': self.δ32_bank[0] - self.δ42_bank[0],
+            '-1/2<->-5/2': self.δ32_bank[0] - self.δ52_bank[0],
+            '-3/2<->-5/2': self.δ42_bank[0] - self.δ52_bank[0],
+            '+5/2<->-1/2': (self.δ02_bank[0] - self.δ32_bank[0])/2,
+            '+3/2<->-3/2': (self.δ12_bank[0] - self.δ42_bank[0])/2,
+            '+1/2<->-5/2': (self.δ22_bank[0] - self.δ52_bank[0])/2,
+            '+5/2<->-3/2': (self.δ02_bank[0] - self.δ42_bank[0])/3,
+            '+3/2<->-5/2': (self.δ12_bank[0] - self.δ52_bank[0])/3,
+            '+5/2<->-5/2': (self.δ02_bank[0] - self.δ52_bank[0])/3
+        }
+        
+        self.fourth_order_shift = {
+            '+5/2<->+3/2': self.δ04_bank[0] - self.δ14_bank[0],
+            '+5/2<->+1/2': self.δ04_bank[0] - self.δ24_bank[0],
+            '+3/2<->+1/2': self.δ14_bank[0] - self.δ24_bank[0],
+            '+3/2<->-1/2': self.δ14_bank[0] - self.δ34_bank[0],
+            '+1/2<->-1/2': self.δ24_bank[0] - self.δ34_bank[0],
+            '+1/2<->-3/2': self.δ24_bank[0] - self.δ44_bank[0],
+            '-1/2<->-3/2': self.δ34_bank[0] - self.δ44_bank[0],
+            '-1/2<->-5/2': self.δ34_bank[0] - self.δ54_bank[0],
+            '-3/2<->-5/2': self.δ44_bank[0] - self.δ54_bank[0],
+            '+5/2<->-1/2': (self.δ04_bank[0] - self.δ34_bank[0])/2,
+            '+3/2<->-3/2': (self.δ14_bank[0] - self.δ44_bank[0])/2,
+            '+1/2<->-5/2': (self.δ24_bank[0] - self.δ54_bank[0])/2,
+            '+5/2<->-3/2': (self.δ04_bank[0] - self.δ44_bank[0])/3,
+            '+3/2<->-5/2': (self.δ14_bank[0] - self.δ54_bank[0])/3,
+            '+5/2<->-5/2': (self.δ04_bank[0] - self.δ54_bank[0])/3
+        }
+        
+        self.sixth_order_shift = {
+            '+5/2<->+3/2': self.δ06_bank[0] - self.δ16_bank[0],
+            '+5/2<->+1/2': self.δ06_bank[0] - self.δ26_bank[0],
+            '+3/2<->+1/2': self.δ16_bank[0] - self.δ26_bank[0],
+            '+3/2<->-1/2': self.δ16_bank[0] - self.δ36_bank[0],
+            '+1/2<->-1/2': self.δ26_bank[0] - self.δ36_bank[0],
+            '+1/2<->-3/2': self.δ26_bank[0] - self.δ46_bank[0],
+            '-1/2<->-3/2': self.δ36_bank[0] - self.δ46_bank[0],
+            '-1/2<->-5/2': self.δ36_bank[0] - self.δ56_bank[0],
+            '-3/2<->-5/2': self.δ46_bank[0] - self.δ56_bank[0],
+            '+5/2<->-1/2': (self.δ06_bank[0] - self.δ36_bank[0])/2,
+            '+3/2<->-3/2': (self.δ16_bank[0] - self.δ46_bank[0])/2,
+            '+1/2<->-5/2': (self.δ26_bank[0] - self.δ56_bank[0])/2,
+            '+5/2<->-3/2': (self.δ06_bank[0] - self.δ46_bank[0])/3,
+            '+3/2<->-5/2': (self.δ16_bank[0] - self.δ56_bank[0])/3,
+            '+5/2<->-5/2': (self.δ06_bank[0] - self.δ56_bank[0])/3
+        }
+        
+        self.eighth_order_shift = {
+            '+5/2<->+3/2': self.δ08_bank[0] - self.δ18_bank[0],
+            '+5/2<->+1/2': self.δ08_bank[0] - self.δ28_bank[0],
+            '+3/2<->+1/2': self.δ18_bank[0] - self.δ28_bank[0],
+            '+3/2<->-1/2': self.δ18_bank[0] - self.δ38_bank[0],
+            '+1/2<->-1/2': self.δ28_bank[0] - self.δ38_bank[0],
+            '+1/2<->-3/2': self.δ28_bank[0] - self.δ48_bank[0],
+            '-1/2<->-3/2': self.δ38_bank[0] - self.δ48_bank[0],
+            '-1/2<->-5/2': self.δ38_bank[0] - self.δ58_bank[0],
+            '-3/2<->-5/2': self.δ48_bank[0] - self.δ58_bank[0],
+            '+5/2<->-1/2': (self.δ08_bank[0] - self.δ38_bank[0])/2,
+            '+3/2<->-3/2': (self.δ18_bank[0] - self.δ48_bank[0])/2,
+            '+1/2<->-5/2': (self.δ28_bank[0] - self.δ58_bank[0])/2,
+            '+5/2<->-3/2': (self.δ08_bank[0] - self.δ48_bank[0])/3,
+            '+3/2<->-5/2': (self.δ18_bank[0] - self.δ58_bank[0])/3,
+            '+5/2<->-5/2': (self.δ08_bank[0] - self.δ58_bank[0])/3
+        }
+        
+        self.δ2 = self.second_order_shift[self.transition]
+        self.δ4 = self.fourth_order_shift[self.transition]
+        self.δ6 = self.sixth_order_shift[self.transition]
+        self.δ8 = self.eighth_order_shift[self.transition]
+        
     # function that calculates shifts throughout D5/2 manifold up to 8th order in stark shift and optionally counter rotating terms and F state couplings
     def rsig_splittings(self, Pr_bank):
     
@@ -1912,6 +2174,15 @@ class sim:
         # fij_k() computes the kth order rabi frequencies between qudit states labelled ij
         if not self.counter_rot and not self.F_states:
             # two-photon transitions
+            self.f01_2 = sp.lambdify(self.symbols,np.load(path_rf + "01_2.npy", allow_pickle=True).tolist(),modules='numpy')
+            self.f02_2 = sp.lambdify(self.symbols,np.load(path_rf + "02_2.npy", allow_pickle=True).tolist(),modules='numpy')
+            self.f12_2 = sp.lambdify(self.symbols,np.load(path_rf + "12_2.npy", allow_pickle=True).tolist(),modules='numpy')
+            self.f13_2 = sp.lambdify(self.symbols,np.load(path_rf + "13_2.npy", allow_pickle=True).tolist(),modules='numpy')
+            self.f23_2 = sp.lambdify(self.symbols,np.load(path_rf + "23_2.npy", allow_pickle=True).tolist(),modules='numpy')
+            self.f24_2 = sp.lambdify(self.symbols,np.load(path_rf + "24_2.npy", allow_pickle=True).tolist(),modules='numpy')
+            self.f34_2 = sp.lambdify(self.symbols,np.load(path_rf + "34_2.npy", allow_pickle=True).tolist(),modules='numpy')
+            self.f35_2 = sp.lambdify(self.symbols,np.load(path_rf + "35_2.npy", allow_pickle=True).tolist(),modules='numpy')
+            self.f45_2 = sp.lambdify(self.symbols,np.load(path_rf + "45_2.npy", allow_pickle=True).tolist(),modules='numpy') 
             
             # four-photon transitions
             self.f03_4 = sp.lambdify(self.symbols,np.load(path_rf + "03_4.npy", allow_pickle=True).tolist(),modules='numpy')

@@ -174,7 +174,6 @@ class generator:
         self.polarizations = polarizations
         
         self.state_energy_dict = {0:0, 1:ω01, 2:(ω01+ ω12), 3:(ω01+ ω12+ ω23), 4:(ω01+ ω12+ ω23+ ω34), 5:(ω01 + ω12 + ω23 + ω34 + ω45), 6:self.Δ, 7:self.Δ, 8:self.Δ, 9:self.Δ}
-
         
     def calc_beam_energy(self, Ωs, order):
         # calculate where beam energy is at each junction
@@ -271,7 +270,7 @@ class generator:
     def calc_state_energy_4(self, l):
         # calculate where state energy is at each junction
         self.unshifted_energies = np.array([-self.ω0*float((l - self.n))])
-        return(np.array([-self.state_energy_dict[l]]))
+        return(np.array([-self.state_energy_dict[l] + self.state_energy_dict[self.n]]))
         # return np.array([-self.ω0*(l - self.n)])
     
     def get_denominator_4(self, Ωs, l):
@@ -354,7 +353,7 @@ class generator:
     def calc_state_energy_6(self, l, j):
         # calculate where state energy is at each junction
         self.unshifted_energies = np.array([-self.ω0*float((l - self.n)), -self.ω0*float((j - self.n))])
-        return(np.array([-self.state_energy_dict[l], -self.state_energy_dict[j]]))
+        return(np.array([-self.state_energy_dict[l] + self.state_energy_dict[self.n], -self.state_energy_dict[j] + self.state_energy_dict[self.n]]))
 
     def get_denominator_6(self, Ωs, l, j):
         if (Ωs[0] == self.Ωr or Ωs[0] == self.Ωb) and (Ωs[1] == self.Ωr or Ωs[1] == self.Ωb):
