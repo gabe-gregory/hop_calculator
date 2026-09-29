@@ -34,6 +34,7 @@ class App:
 
             if calculate:
                 self.calculate_rabi()
+                st.rerun()
                     
             if simulate:
                 self.sim.full_analytics()
