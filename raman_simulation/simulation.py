@@ -6,13 +6,13 @@ from scipy.signal import find_peaks
 from tqdm.notebook import tqdm
 import sympy as sp
 from scipy.signal import find_peaks
-import useful_funcs
+# import useful_funcs
 import matplotlib.pyplot as plt
 from pathlib import Path
 
 
 from .PhotonScatteringFuncs import *
-# from . import useful_funcs
+from . import useful_funcs
 
 class StitchedProgressBar(BaseProgressBar):
     def __init__(self, callback, solve_index=0, n_solves=1):
