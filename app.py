@@ -195,7 +195,7 @@ class App:
         Δ_THz = col1.number_input(
             "P state detuning (THz)",
             step=1.0,
-            format="%.3f",
+            format="%.1f",
             key="p_detuning",
             on_change=detuning_changed
         )
@@ -203,7 +203,7 @@ class App:
         col2.number_input(
             "Laser wavelength (nm)",
             step=1.0,
-            format="%.3f",
+            format="%.0f",
             key="laser_wavelength",
             on_change=wavelength_changed
         )
