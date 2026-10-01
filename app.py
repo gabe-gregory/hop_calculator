@@ -133,8 +133,8 @@ class App:
         # Beam waist
         label, col1, col2 = st.sidebar.columns([1, 2, 2])
         label.write("Waist (μm)")
-        self.sim.w0r = col1.number_input("w0r", value=30.0, step=1.0, label_visibility="collapsed")*1e-6
-        self.sim.w0b = col2.number_input("w0b", value=30.0, step=1.0, label_visibility="collapsed")*1e-6
+        self.sim.w0r = col1.number_input("w0r", format="%.1f", value=30.0, step=1.0, label_visibility="collapsed")*1e-6
+        self.sim.w0b = col2.number_input("w0b", format="%.1f", value=30.0, step=1.0, label_visibility="collapsed")*1e-6
         
         # σ+
         label, col1, col2 = st.sidebar.columns([1, 2, 2])
