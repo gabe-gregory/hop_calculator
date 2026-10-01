@@ -9,13 +9,41 @@ class App:
     def __init__(self):
         st.set_page_config(page_title="HOP Calculator", layout="wide")
         st.markdown(
-            "<h1 style='margin-bottom:0;'>⁴⁰Ca⁺  D<sub>5/2</sub> High-Order Calculator</h1>",
+            "<h1 style='margin-bottom:10px;'>D<sub>5/2</sub> High-Order Calculator</h1>",
             unsafe_allow_html=True
         )
 
+        st.markdown("""
+        <style>
+        div[data-testid="stPills"] button {
+            width: 110px !important;
+            height: 90px !important;
+            font-size: 24px !important;
+            font-weight: 600 !important;
+            border-radius: 8px !important;
+        }
+        </style>
+        """, unsafe_allow_html=True)
+
+        species = st.pills(
+            "Ion species",
+            ["⁴⁰Ca⁺", "⁸⁸Sr⁺", "¹³⁸Ba⁺"],
+            default="⁴⁰Ca⁺",
+            selection_mode="single",
+            label_visibility="collapsed",
+            key="species_selector"
+        )
+
+        species_dict = {
+            "⁴⁰Ca⁺": "40Ca",
+            "⁸⁸Sr⁺": "88Sr",
+            "¹³⁸Ba⁺": "138Ba"
+        }
+
         with st.spinner("Initializing calculator..."):
             self.sim = self.initialize()
-
+            self.sim.specie = species_dict[species]
+            
         self.inputs()
 
         # automatically recalculates Stark shifts whenever an input changes
@@ -137,7 +165,53 @@ class App:
         if "beam_detuning" not in st.session_state:
             st.session_state.beam_detuning = 5.0
         self.sim.ω = st.sidebar.slider("Beam detuning (MHz)", min_value=-20.0, max_value=20.0, step=0.1, key="beam_detuning")*2*np.pi*1e6        
-        self.sim.Δ = st.sidebar.number_input("P state detuning (THz)", value=-44)*2*np.pi*1e12
+
+        
+        # P3/2 resonance wavelengths (nm)
+        resonance_nm = {"40Ca": 854.0, "88Sr": 1033.0, "138Ba": 614.0}
+        λ0 = resonance_nm[self.sim.specie]
+        c_nm_THz = 299792.458
+        f0 = c_nm_THz/λ0
+
+        # Initialize laser wavelength once
+        if "laser_wavelength" not in st.session_state:
+            st.session_state.laser_wavelength = 976.0
+
+        # Recalculate detuning when species changes, keeping wavelength fixed
+        if st.session_state.get("detuning_species") != self.sim.specie:
+            st.session_state.detuning_species = self.sim.specie
+            st.session_state.p_detuning = c_nm_THz/st.session_state.laser_wavelength - f0
+
+        def detuning_changed():
+            Δf = st.session_state.p_detuning
+            st.session_state.laser_wavelength = c_nm_THz/(f0 + Δf)
+
+        def wavelength_changed():
+            λ = st.session_state.laser_wavelength
+            st.session_state.p_detuning = c_nm_THz/λ - f0
+
+        col1, col2 = st.sidebar.columns(2)
+
+        Δ_THz = col1.number_input(
+            "P state detuning (THz)",
+            step=1.0,
+            format="%.3f",
+            key="p_detuning",
+            on_change=detuning_changed
+        )
+
+        col2.number_input(
+            "Laser wavelength (nm)",
+            step=1.0,
+            format="%.3f",
+            key="laser_wavelength",
+            on_change=wavelength_changed
+        )
+
+        self.sim.Δ = Δ_THz*2*np.pi*1e12
+
+        
+        
         self.sim.ω0 = st.sidebar.number_input("Zeeman splitting (MHz)", value=2.63)*2*np.pi*1e6
         self.sim.get_rabi_frequencies()
 

@@ -32,6 +32,7 @@ class StitchedProgressBar(BaseProgressBar):
 
 class sim:
     def __init__(self,
+                 specie = '40Ca', 
                  transition = '+5/2<->-1/2',
                  Pr = 0.195,   # power in Rpi
                  w0r = 30e-6,   # Rpi waist
@@ -55,6 +56,7 @@ class sim:
                  ls_order = 2,   # order to which a.c. stark shifts are calculated
                  rabi_order = 4):   # order to which four-photon analytic rabi freq is calculated
         
+        self.specie = specie
         self.transition = transition
         self.Pr = Pr
         self.w0r = w0r
@@ -156,13 +158,16 @@ class sim:
         self.r_sm = 1 - self.r_sp - self.r_pi   # calculat ratio of power in sigma- 
         self.b_sm = 1 - self.b_sp - self.b_pi
         
+        me_dict = {'40Ca':3.283, '88Sr':4.187, '138Ba':4.103}
+        
         def get_intensity(P, w):
             e = 1.6e-19   # fundamental unit charge
             ħ = 1.055e-34   # reduced plank constant
             c = 3e8   # speed of light
             a0 = 5.292e-11   # bohr radius
             ϵ0 = 8.85e-12   # permitivity of free space
-            μ = 3.283   # P3/2 matrix element
+            μ = me_dict[self.specie]
+            # μ = 3.283   # P3/2 matrix element
             
             # constant to be multiplied by Clebsch-Gordan coefficient to get single beam rabi frequency
             ci = 2*(P**.5)*e*a0*μ/(w*ħ*((ϵ0*c*np.pi)**.5))
