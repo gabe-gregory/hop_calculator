@@ -1954,8 +1954,8 @@ class sim:
         self.rabi_freqs = {}
         self.rabi_terms = {}
         
-        # only consider second order stark shifts to levels when calculating rabi frequencies
-        self.ls_order = 2
+        # calculate 8th order stark shift contributions to the resonance
+        self.ls_order = 8
 
         for key,value in self.ω_pred_full.items():
             self.ω = value
@@ -1982,6 +1982,18 @@ class sim:
                            '+5/2<->-5/2':(self.ω01+self.ω12+self.ω23+self.ω34+self.ω45)/3}
             
             self.ω_pred_full[key] = self.ω_temp[key]
+            
+        # calculate rabi frequencies only considering second order stark shifts
+        self.ls_order = 2
+
+        for key,value in self.ω_pred_full.items():
+            self.ω = value
+            # self.get_rabi_frequencies()
+            self.analytics([self.Pb])
+            Ω = abs(np.sum(self.rabi_functions[key](*self.nums)))
+            self.rabi_freqs[key] = Ω/(2*np.pi*1e3)
+            terms = self.rabi_functions[key](*self.nums)
+            self.rabi_terms[key] = np.array(terms)/(2*np.pi*1e3)
 
         return
         
@@ -2083,68 +2095,68 @@ class sim:
             '+5/2<->-5/2': (self.δ02_bank[0] - self.δ52_bank[0])/3
         }
         
-#         self.fourth_order_shift = {
-#             '+5/2<->+3/2': self.δ04_bank[0] - self.δ14_bank[0],
-#             '+5/2<->+1/2': self.δ04_bank[0] - self.δ24_bank[0],
-#             '+3/2<->+1/2': self.δ14_bank[0] - self.δ24_bank[0],
-#             '+3/2<->-1/2': self.δ14_bank[0] - self.δ34_bank[0],
-#             '+1/2<->-1/2': self.δ24_bank[0] - self.δ34_bank[0],
-#             '+1/2<->-3/2': self.δ24_bank[0] - self.δ44_bank[0],
-#             '-1/2<->-3/2': self.δ34_bank[0] - self.δ44_bank[0],
-#             '-1/2<->-5/2': self.δ34_bank[0] - self.δ54_bank[0],
-#             '-3/2<->-5/2': self.δ44_bank[0] - self.δ54_bank[0],
-#             '+5/2<->-1/2': (self.δ04_bank[0] - self.δ34_bank[0])/2,
-#             '+3/2<->-3/2': (self.δ14_bank[0] - self.δ44_bank[0])/2,
-#             '+1/2<->-5/2': (self.δ24_bank[0] - self.δ54_bank[0])/2,
-#             '+5/2<->-3/2': (self.δ04_bank[0] - self.δ44_bank[0])/3,
-#             '+3/2<->-5/2': (self.δ14_bank[0] - self.δ54_bank[0])/3,
-#             '+5/2<->-5/2': (self.δ04_bank[0] - self.δ54_bank[0])/3
-#         }
+        self.fourth_order_shift = {
+            '+5/2<->+3/2': self.δ04_bank[0] - self.δ14_bank[0],
+            '+5/2<->+1/2': self.δ04_bank[0] - self.δ24_bank[0],
+            '+3/2<->+1/2': self.δ14_bank[0] - self.δ24_bank[0],
+            '+3/2<->-1/2': self.δ14_bank[0] - self.δ34_bank[0],
+            '+1/2<->-1/2': self.δ24_bank[0] - self.δ34_bank[0],
+            '+1/2<->-3/2': self.δ24_bank[0] - self.δ44_bank[0],
+            '-1/2<->-3/2': self.δ34_bank[0] - self.δ44_bank[0],
+            '-1/2<->-5/2': self.δ34_bank[0] - self.δ54_bank[0],
+            '-3/2<->-5/2': self.δ44_bank[0] - self.δ54_bank[0],
+            '+5/2<->-1/2': (self.δ04_bank[0] - self.δ34_bank[0])/2,
+            '+3/2<->-3/2': (self.δ14_bank[0] - self.δ44_bank[0])/2,
+            '+1/2<->-5/2': (self.δ24_bank[0] - self.δ54_bank[0])/2,
+            '+5/2<->-3/2': (self.δ04_bank[0] - self.δ44_bank[0])/3,
+            '+3/2<->-5/2': (self.δ14_bank[0] - self.δ54_bank[0])/3,
+            '+5/2<->-5/2': (self.δ04_bank[0] - self.δ54_bank[0])/3
+        }
         
-#         self.sixth_order_shift = {
-#             '+5/2<->+3/2': self.δ06_bank[0] - self.δ16_bank[0],
-#             '+5/2<->+1/2': self.δ06_bank[0] - self.δ26_bank[0],
-#             '+3/2<->+1/2': self.δ16_bank[0] - self.δ26_bank[0],
-#             '+3/2<->-1/2': self.δ16_bank[0] - self.δ36_bank[0],
-#             '+1/2<->-1/2': self.δ26_bank[0] - self.δ36_bank[0],
-#             '+1/2<->-3/2': self.δ26_bank[0] - self.δ46_bank[0],
-#             '-1/2<->-3/2': self.δ36_bank[0] - self.δ46_bank[0],
-#             '-1/2<->-5/2': self.δ36_bank[0] - self.δ56_bank[0],
-#             '-3/2<->-5/2': self.δ46_bank[0] - self.δ56_bank[0],
-#             '+5/2<->-1/2': (self.δ06_bank[0] - self.δ36_bank[0])/2,
-#             '+3/2<->-3/2': (self.δ16_bank[0] - self.δ46_bank[0])/2,
-#             '+1/2<->-5/2': (self.δ26_bank[0] - self.δ56_bank[0])/2,
-#             '+5/2<->-3/2': (self.δ06_bank[0] - self.δ46_bank[0])/3,
-#             '+3/2<->-5/2': (self.δ16_bank[0] - self.δ56_bank[0])/3,
-#             '+5/2<->-5/2': (self.δ06_bank[0] - self.δ56_bank[0])/3
-#         }
+        self.sixth_order_shift = {
+            '+5/2<->+3/2': self.δ06_bank[0] - self.δ16_bank[0],
+            '+5/2<->+1/2': self.δ06_bank[0] - self.δ26_bank[0],
+            '+3/2<->+1/2': self.δ16_bank[0] - self.δ26_bank[0],
+            '+3/2<->-1/2': self.δ16_bank[0] - self.δ36_bank[0],
+            '+1/2<->-1/2': self.δ26_bank[0] - self.δ36_bank[0],
+            '+1/2<->-3/2': self.δ26_bank[0] - self.δ46_bank[0],
+            '-1/2<->-3/2': self.δ36_bank[0] - self.δ46_bank[0],
+            '-1/2<->-5/2': self.δ36_bank[0] - self.δ56_bank[0],
+            '-3/2<->-5/2': self.δ46_bank[0] - self.δ56_bank[0],
+            '+5/2<->-1/2': (self.δ06_bank[0] - self.δ36_bank[0])/2,
+            '+3/2<->-3/2': (self.δ16_bank[0] - self.δ46_bank[0])/2,
+            '+1/2<->-5/2': (self.δ26_bank[0] - self.δ56_bank[0])/2,
+            '+5/2<->-3/2': (self.δ06_bank[0] - self.δ46_bank[0])/3,
+            '+3/2<->-5/2': (self.δ16_bank[0] - self.δ56_bank[0])/3,
+            '+5/2<->-5/2': (self.δ06_bank[0] - self.δ56_bank[0])/3
+        }
         
-#         self.eighth_order_shift = {
-#             '+5/2<->+3/2': self.δ08_bank[0] - self.δ18_bank[0],
-#             '+5/2<->+1/2': self.δ08_bank[0] - self.δ28_bank[0],
-#             '+3/2<->+1/2': self.δ18_bank[0] - self.δ28_bank[0],
-#             '+3/2<->-1/2': self.δ18_bank[0] - self.δ38_bank[0],
-#             '+1/2<->-1/2': self.δ28_bank[0] - self.δ38_bank[0],
-#             '+1/2<->-3/2': self.δ28_bank[0] - self.δ48_bank[0],
-#             '-1/2<->-3/2': self.δ38_bank[0] - self.δ48_bank[0],
-#             '-1/2<->-5/2': self.δ38_bank[0] - self.δ58_bank[0],
-#             '-3/2<->-5/2': self.δ48_bank[0] - self.δ58_bank[0],
-#             '+5/2<->-1/2': (self.δ08_bank[0] - self.δ38_bank[0])/2,
-#             '+3/2<->-3/2': (self.δ18_bank[0] - self.δ48_bank[0])/2,
-#             '+1/2<->-5/2': (self.δ28_bank[0] - self.δ58_bank[0])/2,
-#             '+5/2<->-3/2': (self.δ08_bank[0] - self.δ48_bank[0])/3,
-#             '+3/2<->-5/2': (self.δ18_bank[0] - self.δ58_bank[0])/3,
-#             '+5/2<->-5/2': (self.δ08_bank[0] - self.δ58_bank[0])/3
-#         }
+        self.eighth_order_shift = {
+            '+5/2<->+3/2': self.δ08_bank[0] - self.δ18_bank[0],
+            '+5/2<->+1/2': self.δ08_bank[0] - self.δ28_bank[0],
+            '+3/2<->+1/2': self.δ18_bank[0] - self.δ28_bank[0],
+            '+3/2<->-1/2': self.δ18_bank[0] - self.δ38_bank[0],
+            '+1/2<->-1/2': self.δ28_bank[0] - self.δ38_bank[0],
+            '+1/2<->-3/2': self.δ28_bank[0] - self.δ48_bank[0],
+            '-1/2<->-3/2': self.δ38_bank[0] - self.δ48_bank[0],
+            '-1/2<->-5/2': self.δ38_bank[0] - self.δ58_bank[0],
+            '-3/2<->-5/2': self.δ48_bank[0] - self.δ58_bank[0],
+            '+5/2<->-1/2': (self.δ08_bank[0] - self.δ38_bank[0])/2,
+            '+3/2<->-3/2': (self.δ18_bank[0] - self.δ48_bank[0])/2,
+            '+1/2<->-5/2': (self.δ28_bank[0] - self.δ58_bank[0])/2,
+            '+5/2<->-3/2': (self.δ08_bank[0] - self.δ48_bank[0])/3,
+            '+3/2<->-5/2': (self.δ18_bank[0] - self.δ58_bank[0])/3,
+            '+5/2<->-5/2': (self.δ08_bank[0] - self.δ58_bank[0])/3
+        }
         
         self.δ2 = self.second_order_shift[self.transition]
-        self.δ4 = 0
-        self.δ6 = 0
-        self.δ8 = 0
+        # self.δ4 = 0
+        # self.δ6 = 0
+        # self.δ8 = 0
         
-        # self.δ4 = self.fourth_order_shift[self.transition]
-        # self.δ6 = self.sixth_order_shift[self.transition]
-        # self.δ8 = self.eighth_order_shift[self.transition]
+        self.δ4 = self.fourth_order_shift[self.transition]
+        self.δ6 = self.sixth_order_shift[self.transition]
+        self.δ8 = self.eighth_order_shift[self.transition]
         
     # function that calculates shifts throughout D5/2 manifold up to 8th order in stark shift and optionally counter rotating terms and F state couplings
     def rsig_splittings(self, Pr_bank):
