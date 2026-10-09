@@ -1995,6 +1995,33 @@ class sim:
             terms = self.rabi_functions[key](*self.nums)
             self.rabi_terms[key] = np.array(terms)/(2*np.pi*1e3)
 
+        # calculate 8th order stark shift contributions to the resonance
+        self.ls_order = 8
+
+        for key,value in self.ω_pred_full.items():
+            self.ω = value
+            # self.get_rabi_frequencies()
+            self.analytics([self.Pb])
+            self.ω_temp = {'+5/2<->+3/2':self.ω01,
+                           '+5/2<->+1/2':(self.ω01+self.ω12),
+                           '+3/2<->+1/2':self.ω12,
+                           '+3/2<->-1/2':(self.ω12+self.ω23),
+                           '+1/2<->-1/2':self.ω23,
+                           '+1/2<->-3/2':(self.ω23+self.ω34),
+                           '-1/2<->-3/2':self.ω34,
+                           '-1/2<->-5/2':(self.ω34+self.ω45),
+                           '-3/2<->-5/2':self.ω45,
+                           '+5/2<->-1/2':(self.ω01+self.ω12+self.ω23)/2,
+                           '+3/2<->-3/2':(self.ω12+self.ω23+self.ω34)/2,
+                           '+1/2<->-5/2':(self.ω23+self.ω34+self.ω45)/2,
+                           '+5/2<->-3/2':(self.ω01+self.ω12+self.ω23+self.ω34)/3,
+                           '+3/2<->-5/2':(self.ω12+self.ω23+self.ω34+self.ω45)/3,
+                           '+5/2<->-5/2':(self.ω01+self.ω12+self.ω23+self.ω34+self.ω45)/3}
+            self.ω_pred_full[key] = self.ω_temp[key]
+            
+            
+            
+            
         return
         
     def full_simulate(self, spectroscopy_progress=None, dynamics_progress=None):
